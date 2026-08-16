@@ -19,10 +19,11 @@ namespace Match3
         public event System.Action<int> OnScoreChanged;
         public event System.Action<int> OnHighScoreChanged;
         public event System.Action OnGameOver;
+        public event System.Action<bool> OnUndoAvailableChanged;   // ★ UNDO 新事件
 
         // ---- 子系统 ----
         private BlockBoard board;
-        private BlockRenderer renderer;
+        private BlockRenderer blockRenderer;
         private BlockInput input;
 
         // ---- 数据 ----
@@ -37,6 +38,15 @@ namespace Match3
         // 消除位置缓存（避免每次 new）
         private List<Vector2Int> clearedCells = new List<Vector2Int>();
 
+        // ★ UNDO —— 快照数据 ————————————————————————————
+        private int[] snapshotGrid;
+        private int   snapshotScore;
+        private int[] snapshotShapeIndices = new int[ShapesPerRound];
+        private int[] snapshotShapeTypes   = new int[ShapesPerRound];
+        private bool[] snapshotShapePlaced = new bool[ShapesPerRound];
+        private bool  canUndo;
+        // ——————————————————————————————————————————————————
+
         // ==============================================================
         //  初始化
         // ==============================================================
@@ -44,9 +54,9 @@ namespace Match3
         private void Start()
         {
             board = new BlockBoard();
-            renderer = new BlockRenderer(transform, candySprites,
+            blockRenderer = new BlockRenderer(transform, candySprites,
                                           clearEffectPrefab, 0.85f);
-            input = new BlockInput(Camera.main, renderer, board, transform);
+            input = new BlockInput(Camera.main, blockRenderer, board, transform);
             input.OnPlaced += HandlePlacement;
 
             highScore = BlockSaveData.GetHighScore();
@@ -56,13 +66,14 @@ namespace Match3
             else
                 GenerateRound();
 
-            renderer.CreateGrid();
+            blockRenderer.CreateGrid();
             RefreshAll();
             CenterCamera();
             FitBackground();
 
             OnScoreChanged?.Invoke(score);
             OnHighScoreChanged?.Invoke(highScore);
+            OnUndoAvailableChanged?.Invoke(false);     // ★ UNDO
         }
 
         private void Update()
@@ -87,6 +98,9 @@ namespace Match3
 
         private void HandlePlacement(int slotIndex, int gridRow, int gridCol)
         {
+            // ★ UNDO —— 放置前保存快照
+            SaveSnapshot();
+
             // 执行放置
             board.Place(roundShapeIndices[slotIndex], gridRow, gridCol,
                         roundShapeTypes[slotIndex]);
@@ -96,7 +110,7 @@ namespace Match3
             int cleared = board.ClearFullLines(clearedCells);
             if (cleared > 0)
             {
-                renderer.SpawnClearEffects(clearedCells);
+                blockRenderer.SpawnClearEffects(clearedCells);
 
                 score += BlockBoard.ScoreForLines(cleared);
                 OnScoreChanged?.Invoke(score);
@@ -109,13 +123,13 @@ namespace Match3
                 }
             }
 
-            renderer.RefreshGrid(board);
+            blockRenderer.RefreshGrid(board);
 
             // 判断：3 个都放完了 → 新一轮
             if (AllPlaced())
             {
                 GenerateRound();
-                renderer.RefreshTray(roundShapeIndices, roundShapeTypes, roundShapePlaced);
+                blockRenderer.RefreshTray(roundShapeIndices, roundShapeTypes, roundShapePlaced);
 
                 if (!AnyShapeCanFit())
                 {
@@ -131,11 +145,14 @@ namespace Match3
                     EndGame();
                     return;
                 }
-                renderer.RefreshTray(roundShapeIndices, roundShapeTypes, roundShapePlaced);
+                blockRenderer.RefreshTray(roundShapeIndices, roundShapeTypes, roundShapePlaced);
             }
 
             BlockSaveData.Save(board, roundShapeIndices, roundShapeTypes,
                                roundShapePlaced, score);
+
+            // ★ UNDO —— 放置成功后允许回溯
+            SetCanUndo(true);
         }
 
         private void EndGame()
@@ -143,6 +160,66 @@ namespace Match3
             gameOver = true;
             BlockSaveData.ClearSave();
             OnGameOver?.Invoke();
+
+            // ★ UNDO —— 游戏结束仍可回溯最后一步（给玩家后悔的机会）
+            // canUndo 状态在 HandlePlacement 末尾已经设为 true，这里不改
+        }
+
+        // ==============================================================
+        //  ★ UNDO —— 回溯
+        // ==============================================================
+
+        /// <summary>
+        /// 保存当前状态快照，在每次放置之前调用。
+        /// </summary>
+        private void SaveSnapshot()
+        {
+            snapshotGrid  = board.Export();          // 需要 BlockBoard 提供
+            snapshotScore = score;
+            System.Array.Copy(roundShapeIndices, snapshotShapeIndices, ShapesPerRound);
+            System.Array.Copy(roundShapeTypes,   snapshotShapeTypes,   ShapesPerRound);
+            System.Array.Copy(roundShapePlaced,  snapshotShapePlaced,  ShapesPerRound);
+        }
+
+        /// <summary>
+        /// 回溯一步。由 UI 按钮调用。
+        /// </summary>
+        public void Undo()
+        {
+            if (!canUndo || snapshotGrid == null) return;
+
+            // 恢复棋盘
+            board.Import(snapshotGrid);
+
+            // 恢复分数
+            score = snapshotScore;
+            OnScoreChanged?.Invoke(score);
+
+            // 恢复轮次数据
+            System.Array.Copy(snapshotShapeIndices, roundShapeIndices, ShapesPerRound);
+            System.Array.Copy(snapshotShapeTypes,   roundShapeTypes,   ShapesPerRound);
+            System.Array.Copy(snapshotShapePlaced,  roundShapePlaced,  ShapesPerRound);
+            input.SetRoundData(roundShapeIndices, roundShapeTypes, roundShapePlaced);
+
+            // 如果是从 GameOver 回溯的，重置状态
+            if (gameOver)
+                gameOver = false;
+
+            // 刷新显示
+            RefreshAll();
+
+            // 回溯后存档（存当前恢复的状态）
+            BlockSaveData.Save(board, roundShapeIndices, roundShapeTypes,
+                               roundShapePlaced, score);
+
+            // 只能撤一步
+            SetCanUndo(false);
+        }
+
+        private void SetCanUndo(bool value)
+        {
+            canUndo = value;
+            OnUndoAvailableChanged?.Invoke(canUndo);
         }
 
         // ==============================================================
@@ -199,8 +276,8 @@ namespace Match3
 
         private void RefreshAll()
         {
-            renderer.RefreshGrid(board);
-            renderer.RefreshTray(roundShapeIndices, roundShapeTypes, roundShapePlaced);
+            blockRenderer.RefreshGrid(board);
+            blockRenderer.RefreshTray(roundShapeIndices, roundShapeTypes, roundShapePlaced);
         }
 
         // ==============================================================
@@ -213,8 +290,8 @@ namespace Match3
             if (cam == null) return;
             cam.orthographic = true;
 
-            var o = renderer.GridOrigin();
-            float cs = renderer.CellSize;
+            var o = blockRenderer.GridOrigin();
+            float cs = blockRenderer.CellSize;
             float gridCenterX = o.x + BlockBoard.Cols * cs / 2f;
             float gridTop = o.y;
             float trayBottom = o.y - BlockBoard.Rows * cs - cs * 4f;

@@ -298,7 +298,7 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1098832641
+--- !u!1 &1157548456
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -306,30 +306,27 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1098832643}
-  - component: {fileID: 1098832642}
+  - component: {fileID: 1157548458}
+  - component: {fileID: 1157548457}
   m_Layer: 0
-  m_Name: Board
+  m_Name: GameManager
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1098832642
+--- !u!114 &1157548457
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1098832641}
+  m_GameObject: {fileID: 1157548456}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 89bc6efd955d8c543b214e547b43836a, type: 3}
+  m_Script: {fileID: 11500000, guid: 110723c74b0026e44b0325e2cee070e3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  width: 7
-  height: 9
-  tileSize: 1
   candySprites:
   - {fileID: 21300000, guid: 8c88d6b2d73990e4097e4abb2e1b73fe, type: 3}
   - {fileID: 21300000, guid: e8473b26febfbf64db883daea09395fa, type: 3}
@@ -337,18 +334,32 @@ MonoBehaviour:
   - {fileID: 21300000, guid: 459442cf75d74a2498ff748cccdfa588, type: 3}
   - {fileID: 21300000, guid: 209fe4dd6ee945841aa398b68dda0f9e, type: 3}
   - {fileID: 21300000, guid: 2fcabde2b7601cf4e9d40ba5e7c7bcc0, type: 3}
-  moveSpeed: 12
-  targetScore: 1000
-  maxSteps: 30
+  - {fileID: 21300000, guid: b574cd524ea5f3e4c8f19a6adec5dcdf, type: 3}
+  - {fileID: 21300000, guid: e8b2a4518b729fa44b16abe9c76c498f, type: 3}
+  - {fileID: 21300000, guid: 1e481716bd5c29b46a21cf8628d75973, type: 3}
   clearEffectPrefab: {fileID: 226608267823944289, guid: 6b503a5d3cd1a5c4f94c181f582a3120, type: 3}
   background: {fileID: 867122022}
---- !u!4 &1098832643
+  moveSpeed: 12
+  hudAnchorX: 0
+  hudPadTop: 20
+  hudPadLeft: 20
+  hudLineHeight: 50
+  hudFontSize: 34
+  hudTextColor: {r: 0.2, g: 0.6, b: 1, a: 1}
+  useCustomDifficulty: 0
+  debugLevel: 0
+  debugWidth: 7
+  debugHeight: 9
+  debugTypeCount: 5
+  debugTargetScore: 5000
+  debugMaxSteps: 30
+--- !u!4 &1157548458
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1098832641}
+  m_GameObject: {fileID: 1157548456}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 2.7057288, y: -3.038563, z: 0.008110535}
@@ -363,4 +374,4 @@ SceneRoots:
   m_Roots:
   - {fileID: 519420032}
   - {fileID: 867122023}
-  - {fileID: 1098832643}
+  - {fileID: 1157548458}

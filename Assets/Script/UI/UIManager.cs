@@ -43,6 +43,8 @@ namespace Match3
         public event Action OnModeBClicked;
         public event Action OnBackToMenuFromB;
         public event Action OnBlockNewGame;
+        private Button undoButton;                    // ★ UNDO
+        public event Action OnBlockUndo;              // ★ UNDO
 
         // ---- 颜色 ----
         private readonly Color colorPrimary  = new Color(0.20f, 0.60f, 0.95f);
@@ -144,6 +146,12 @@ namespace Match3
             if (blockOverHighText != null) blockOverHighText.text = "最高分：" + s;
         }
 
+
+        public void SetUndoInteractable(bool v)
+        {
+            if (undoButton != null) undoButton.interactable = v;
+        }
+        
         // ==============================================================
         //  选关刷新
         // ==============================================================
@@ -238,7 +246,7 @@ namespace Match3
         private void BuildGameHUD()
         {
             gameHudPanel = CreatePanel("GameHudPanel", false);
-            float padL = 20f; float padT = -20f; float lineH = 50f;
+            float padL = 20f; float padT = -70f; float lineH = 50f;
             Color textBlue = new Color(0.2f, 0.6f, 1f);
 
             levelNameText = CreateTextAnchored(gameHudPanel.transform, "", 36, 0f, 1f,
@@ -288,15 +296,15 @@ namespace Match3
             Color blue = new Color(0.2f, 0.6f, 1f);
 
             // 分数（居中偏上，大字号，醒目）
-            blockScoreText = CreateTextAnchored(blockHudPanel.transform, "得分: 0", 48,
-                             0.5f, 1f, new Vector2(0, -20), new Vector2(500, 60),
+            blockScoreText = CreateTextAnchored(blockHudPanel.transform, "得分: 0", 54,
+                             0.5f, 1f, new Vector2(0, -70), new Vector2(500, 60),
                              blue, FontStyle.Bold);
             blockScoreText.alignment = TextAnchor.MiddleCenter;
 
             // 最高分（分数下方，稍小）
-            blockHighText = CreateTextAnchored(blockHudPanel.transform, "最高分: 0", 30,
-                            0.5f, 1f, new Vector2(0, -70), new Vector2(500, 40),
-                            colorCleared, FontStyle.Normal);
+            blockHighText = CreateTextAnchored(blockHudPanel.transform, "最高分: 0", 42,
+                            0.5f, 1f, new Vector2(0, -130), new Vector2(500, 40),
+                            colorDanger, FontStyle.Normal);
             blockHighText.alignment = TextAnchor.MiddleCenter;
 
             // 退出按钮（右上角）
@@ -306,6 +314,15 @@ namespace Match3
             var rt = exitBtn.GetComponent<RectTransform>();
             rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(1f, 1f);
             rt.anchoredPosition = new Vector2(-20f, -20f);
+
+            // 回溯按钮（左上角）
+            undoButton = CreateButton(blockHudPanel.transform, "撤回", 26,
+              Vector2.zero, new Vector2(110, 50),
+              colorOrange, () => OnBlockUndo?.Invoke());
+            var undoRt = undoButton.GetComponent<RectTransform>();
+            undoRt.anchorMin = undoRt.anchorMax = undoRt.pivot = new Vector2(0f, 1f);
+            undoRt.anchoredPosition = new Vector2(20f, -20f);
+            undoButton.interactable = false;
         }
 
         private void BuildBlockOver()

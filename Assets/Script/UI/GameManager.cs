@@ -63,6 +63,7 @@ namespace Match3
             ui.OnModeBClicked       += StartBlockMode;
             ui.OnBackToMenuFromB    += () => { CleanupAll(); ui.ShowMainMenu(); };
             ui.OnBlockNewGame       += () => { PlayerPrefs.DeleteKey("Block_Save"); StartBlockMode(); };
+            ui.OnBlockUndo += () => { if (blockGame != null) blockGame.Undo(); };
         }
 
         // ==============================================================
@@ -141,7 +142,8 @@ namespace Match3
             blockGame.OnScoreChanged    += (s) => ui.UpdateBlockScore(s);
             blockGame.OnHighScoreChanged += (s) => ui.UpdateBlockHighScore(s);
             blockGame.OnGameOver        += OnBlockGameOver;
-
+            blockGame.OnUndoAvailableChanged += (available) => ui.SetUndoInteractable(available);
+            
             ui.ShowBlockHUD();
         }
 

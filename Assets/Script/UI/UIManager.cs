@@ -2,188 +2,100 @@ using System;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace Match3
+namespace Common
 {
-    public class UIManager
+    /// <summary>
+    /// »´æ÷ UI π‹¿Ì∆˜£®µ•¿˝£©°£
+    /// 
+    /// ≤Àµ•Ω·ππ£∫
+    ///   ÷˜≤Àµ• ©§©–©§ œ˚œ˚¿÷ °˙ ◊”≤Àµ• ©§©–©§ ¥≥πÿƒ£ Ω
+    ///           ©¶                     ©∏©§ ∑ΩøÈƒ£ Ω
+    ///           ©∏©§ …®¿◊   °˙ MineUI ƒ—∂»—°‘Ò
+    /// </summary>
+    public class UIManager : MonoBehaviour
     {
-        // ---- Èù¢Êùø ----
+        public static UIManager Instance { get; private set; }
+
+        /// <summary>π≤œÌ Canvas£¨À˘”– UI √Ê∞Â∂ºπ“‘⁄’‚œ¬√Ê°£</summary>
+        public Canvas SharedCanvas { get; private set; }
+
         private GameObject mainMenuPanel;
-        private GameObject levelSelectPanel;
-        private GameObject gameHudPanel;
-        private GameObject gameOverPanel;
-        private GameObject blockHudPanel;      // Ê®°ÂºèB HUD
-        private GameObject blockOverPanel;     // Ê®°ÂºèB ÁªìÁÆó
+        private GameObject matchSubMenuPanel;   // œ˚œ˚¿÷◊”≤Àµ•
 
-        // ---- Ê®°ÂºèA HUD Êéß‰ª∂ ----
-        private Text scoreText, stepsText, targetText, lastGainText, shuffleText, levelNameText;
+        // ----  ¬º˛ ----
+        public event Action OnMatchLevelClicked;  // ¥≥πÿƒ£ Ω
+        public event Action OnBlockModeClicked;   // ∑ΩøÈƒ£ Ω
+        public event Action OnMineModeClicked;    // …®¿◊ƒ£ Ω
+        public event Action OnClearSaveClicked;   // «Â≥˝¥Êµµ
 
-        // ---- Ê®°ÂºèA ÁªìÁÆóÊéß‰ª∂ ----
-        private Text resultTitleText, resultScoreText, resultBestText;
-
-        // ---- Ê®°ÂºèB HUD Êéß‰ª∂ ----
-        private Text blockScoreText, blockHighText;
-
-        // ---- Ê®°ÂºèB ÁªìÁÆóÊéß‰ª∂ ----
-        private Text blockOverScoreText, blockOverHighText;
-
-        // ---- ÈÄâÂÖ≥ÊåâÈíÆ ----
-        private Button[] levelButtons;
-        private Text[] levelButtonTexts;
-        private Image[] levelButtonImages;
-
-        // ---- ‰∫ã‰ª∂ÔºöÊ®°ÂºèA ----
-        public event Action OnModeAClicked;
-        public event Action<int> OnLevelSelected;
-        public event Action OnBackToMenu;
-        public event Action OnBackToLevelSelect;
-        public event Action OnRetryLevel;
-        public event Action OnClearSave;
-
-        // ---- ‰∫ã‰ª∂ÔºöÊ®°ÂºèB ----
-        public event Action OnModeBClicked;
-        public event Action OnBackToMenuFromB;
-        public event Action OnBlockNewGame;
-        private Button undoButton;                    // ‚òÖ UNDO
-        public event Action OnBlockUndo;              // ‚òÖ UNDO
-
-        // ---- È¢úËâ≤ ----
-        private readonly Color colorPrimary  = new Color(0.20f, 0.60f, 0.95f);
-        private readonly Color colorSuccess  = new Color(0.30f, 0.78f, 0.30f);
-        private readonly Color colorDanger   = new Color(0.90f, 0.30f, 0.30f);
-        private readonly Color colorLocked   = new Color(0.55f, 0.55f, 0.55f);
-        private readonly Color colorCleared  = new Color(1.00f, 0.75f, 0.20f);
-        private readonly Color colorBg       = new Color(0.12f, 0.12f, 0.18f, 0.92f);
-        private readonly Color colorOrange   = new Color(0.95f, 0.55f, 0.15f);
-
-        private Canvas canvas;
+        private void Awake()
+        {
+            if (Instance != null && Instance != this)
+            {
+                Destroy(gameObject);
+                return;
+            }
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
+        }
 
         public void Build()
         {
             CreateCanvas();
             BuildMainMenu();
-            BuildLevelSelect();
-            BuildGameHUD();
-            BuildGameOver();
-            BuildBlockHUD();
-            BuildBlockOver();
+            BuildMatchSubMenu();
             ShowMainMenu();
         }
 
         // ==============================================================
-        //  ÊòæÁ§∫/ÈöêËóè
+        //  œ‘ æ / “˛≤ÿ
         // ==============================================================
 
-        private void HideAll()
+        private void HideAllOwn()
         {
             mainMenuPanel.SetActive(false);
-            levelSelectPanel.SetActive(false);
-            gameHudPanel.SetActive(false);
-            gameOverPanel.SetActive(false);
-            blockHudPanel.SetActive(false);
-            blockOverPanel.SetActive(false);
+            matchSubMenuPanel.SetActive(false);
         }
 
-        public void ShowMainMenu()        { HideAll(); mainMenuPanel.SetActive(true); }
-        public void ShowLevelSelect()     { HideAll(); levelSelectPanel.SetActive(true); RefreshLevelButtons(); }
-        public void ShowGameHUD(int level){ HideAll(); gameHudPanel.SetActive(true); levelNameText.text = "Á¨¨ " + level + " ÂÖ≥"; shuffleText.text = ""; lastGainText.text = ""; }
-        public void ShowBlockHUD()        { HideAll(); blockHudPanel.SetActive(true); }
-
-        public void ShowGameOver(bool isWin, int score, int levelNumber)
+        /// <summary>œ‘ æ÷˜≤Àµ•£®¥”»Œ∫Œµÿ∑Ω∑µªÿ ±µ˜”√£©°£</summary>
+        public void ShowMainMenu()
         {
-            gameOverPanel.SetActive(true);
-            resultTitleText.text  = isWin ? "ÈÄöÂÖ≥ÊàêÂäüÔºÅ" : "ÊåëÊàòÂ§±Ë¥•";
-            resultTitleText.color = isWin ? colorSuccess : colorDanger;
-            resultScoreText.text  = "ÂæóÂàÜÔºö" + score;
-            int best = SaveManager.GetBestScore(levelNumber);
-            resultBestText.text = best > 0 ? "ÊúÄÈ´òÂàÜÔºö" + best : "";
+            HideAllOwn();
+            mainMenuPanel.SetActive(true);
+            // “∆µΩ Canvas ◊Ó∫Û“ª∏ˆ◊”Ω⁄µ„ °˙ ‰÷»æ‘⁄◊Ó…œ≤„
+            mainMenuPanel.transform.SetAsLastSibling();
         }
 
-        public void ShowBlockGameOver()
+        private void ShowMatchSubMenu()
         {
-            blockOverPanel.SetActive(true);
+            HideAllOwn();
+            matchSubMenuPanel.SetActive(true);
+            matchSubMenuPanel.transform.SetAsLastSibling();
+        }
+
+        /// <summary>Ωˆ“˛≤ÿ UIManager ◊‘º∫µƒ√Ê∞Â£®Ω¯»Î”Œœ∑ƒ£ Ω ±µ˜”√£©°£</summary>
+        public void HideMainMenu()
+        {
+            HideAllOwn();
         }
 
         // ==============================================================
-        //  Ê®°ÂºèA HUD Êõ¥Êñ∞
-        // ==============================================================
-
-        public void UpdateScore(int s)            => scoreText.text  = "ÂæóÂàÜ: " + s;
-        public void UpdateSteps(int used, int max) => stepsText.text  = "Ê≠•Êï∞: " + used + " / " + max;
-        public void UpdateTarget(int t)           => targetText.text = "ÁõÆÊ†á: " + t;
-        public void ShowLastGain(int g)           => lastGainText.text = g > 0 ? "+" + g : "";
-        public void ShowShuffleHint(bool b)       => shuffleText.text = b ? "Êó†ÂèØÊ∂àÈô§ÔºåÊ≠£Âú®Ê¥óÁâå‚Ä¶" : "";
-
-        public void ApplyHudStyle(float anchorX, float padLeft, float padTop,
-                                  float lineHeight, int fontSize, Color color)
-        {
-            if (scoreText == null) return;
-            Text[] texts = { levelNameText, scoreText, stepsText, targetText, shuffleText };
-            for (int i = 0; i < texts.Length; i++)
-            {
-                var rt = texts[i].GetComponent<RectTransform>();
-                rt.anchorMin = new Vector2(anchorX, 1f);
-                rt.anchorMax = new Vector2(anchorX, 1f);
-                rt.pivot = new Vector2(anchorX, 1f);
-                rt.anchoredPosition = new Vector2(padLeft, -padTop - lineHeight * i);
-                texts[i].fontSize = fontSize;
-            }
-            scoreText.color = color; stepsText.color = color; targetText.color = color;
-        }
-
-        // ==============================================================
-        //  Ê®°ÂºèB HUD Êõ¥Êñ∞
-        // ==============================================================
-
-        public void UpdateBlockScore(int s)
-        {
-            if (blockScoreText != null) blockScoreText.text = "ÂæóÂàÜ: " + s;
-            if (blockOverScoreText != null) blockOverScoreText.text = "ÊúÄÁªàÂæóÂàÜÔºö" + s;
-        }
-
-        public void UpdateBlockHighScore(int s)
-        {
-            if (blockHighText != null) blockHighText.text = "ÊúÄÈ´òÂàÜ: " + s;
-            if (blockOverHighText != null) blockOverHighText.text = "ÊúÄÈ´òÂàÜÔºö" + s;
-        }
-
-
-        public void SetUndoInteractable(bool v)
-        {
-            if (undoButton != null) undoButton.interactable = v;
-        }
-        
-        // ==============================================================
-        //  ÈÄâÂÖ≥Âà∑Êñ∞
-        // ==============================================================
-
-        public void RefreshLevelButtons()
-        {
-            for (int i = 0; i < LevelDatabase.Count; i++)
-            {
-                int level = i + 1;
-                int state = SaveManager.GetLevelState(level);
-                levelButtons[i].interactable = state >= 1;
-                if (state == 0)      { levelButtonImages[i].color = colorLocked; levelButtonTexts[i].text = "üîí"; }
-                else if (state == 1) { levelButtonImages[i].color = colorPrimary; levelButtonTexts[i].text = level.ToString(); }
-                else                 { levelButtonImages[i].color = colorCleared; levelButtonTexts[i].text = level + "\n‚òÖ"; }
-                levelButtonTexts[i].color = Color.white;
-            }
-        }
-
-        // ==============================================================
-        //  ÊûÑÂª∫Èù¢Êùø
+        //  ππΩ®
         // ==============================================================
 
         private void CreateCanvas()
         {
             var go = new GameObject("UICanvas");
-            canvas = go.AddComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = 100;
+            go.transform.SetParent(transform);
+            SharedCanvas = go.AddComponent<Canvas>();
+            SharedCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            SharedCanvas.sortingOrder = 100;
+
             var scaler = go.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1080, 1920);
             scaler.matchWidthOrHeight = 0.5f;
+
             go.AddComponent<GraphicRaycaster>();
 
             if (UnityEngine.EventSystems.EventSystem.current == null)
@@ -196,231 +108,62 @@ namespace Match3
 
         private void BuildMainMenu()
         {
-            mainMenuPanel = CreatePanel("MainMenuPanel");
-            CreateText(mainMenuPanel.transform, "Ê∂àÊ∂à‰πê", 72, TextAnchor.MiddleCenter,
-                       new Vector2(0, 200), new Vector2(600, 100), Color.white, FontStyle.Bold);
-            CreateButton(mainMenuPanel.transform, "ÈóØÂÖ≥Ê®°Âºè", 38,
-                         new Vector2(0, 20), new Vector2(400, 90),
-                         colorPrimary, () => OnModeAClicked?.Invoke());
-            CreateButton(mainMenuPanel.transform, "ÊñπÂùóÊ®°Âºè", 38,
-                         new Vector2(0, -100), new Vector2(400, 90),
-                         colorOrange, () => OnModeBClicked?.Invoke());
-            CreateButton(mainMenuPanel.transform, "Ê∏ÖÈô§Â≠òÊ°£", 24,
-                         new Vector2(0, -320), new Vector2(220, 55),
-                         new Color(0.4f, 0.4f, 0.4f), () => OnClearSave?.Invoke());
+            mainMenuPanel = UIHelper.CreatePanel(SharedCanvas.transform, "MainMenuPanel");
+
+            UIHelper.CreateText(mainMenuPanel.transform, "œ˚œ˚¿÷", 72, TextAnchor.MiddleCenter,
+                                new Vector2(0, 280), new Vector2(600, 100),
+                                Color.white, FontStyle.Bold);
+
+            // ©§©§ œ˚œ˚¿÷£®Ω¯»Î◊”≤Àµ•£©©§©§
+            UIHelper.CreateButton(mainMenuPanel.transform, "œ˚œ˚¿÷", 38,
+                                  new Vector2(0, 60), new Vector2(400, 90),
+                                  UIHelper.ColorPrimary,
+                                  ShowMatchSubMenu);
+
+            // ©§©§ …®¿◊ ©§©§
+            UIHelper.CreateButton(mainMenuPanel.transform, "…®¿◊", 38,
+                                  new Vector2(0, -60), new Vector2(400, 90),
+                                  UIHelper.ColorSuccess,
+                                  () => { HideAllOwn(); OnMineModeClicked?.Invoke(); });
+
+            // ©§©§ «Â≥˝¥Êµµ ©§©§
+            UIHelper.CreateButton(mainMenuPanel.transform, "«Â≥˝¥Êµµ", 24,
+                                  new Vector2(0, -300), new Vector2(220, 55),
+                                  UIHelper.ColorGray,
+                                  () => OnClearSaveClicked?.Invoke());
         }
 
-        private void BuildLevelSelect()
+        private void BuildMatchSubMenu()
         {
-            levelSelectPanel = CreatePanel("LevelSelectPanel");
-            CreateText(levelSelectPanel.transform, "ÈÄâÊã©ÂÖ≥Âç°", 52, TextAnchor.MiddleCenter,
-                       new Vector2(0, 380), new Vector2(500, 80), Color.white, FontStyle.Bold);
-            CreateButton(levelSelectPanel.transform, "‚Üê ËøîÂõû", 30,
-                         new Vector2(-380, 380), new Vector2(160, 60),
-                         new Color(0.4f, 0.4f, 0.5f), () => OnBackToMenu?.Invoke());
+            matchSubMenuPanel = UIHelper.CreatePanel(SharedCanvas.transform, "MatchSubMenuPanel");
 
-            int cols = 4; float btnSize = 120f; float gap = 20f;
-            float totalW = cols * btnSize + (cols - 1) * gap;
-            float startX = -totalW / 2f + btnSize / 2f;
-            float startY = 240f;
+            UIHelper.CreateText(matchSubMenuPanel.transform, "œ˚œ˚¿÷", 60, TextAnchor.MiddleCenter,
+                                new Vector2(0, 280), new Vector2(600, 90),
+                                Color.white, FontStyle.Bold);
 
-            levelButtons = new Button[LevelDatabase.Count];
-            levelButtonTexts = new Text[LevelDatabase.Count];
-            levelButtonImages = new Image[LevelDatabase.Count];
+            UIHelper.CreateText(matchSubMenuPanel.transform, "—°‘Òƒ£ Ω", 36, TextAnchor.MiddleCenter,
+                                new Vector2(0, 200), new Vector2(400, 50),
+                                UIHelper.ColorCleared, FontStyle.Normal);
 
-            for (int i = 0; i < LevelDatabase.Count; i++)
-            {
-                int col = i % cols; int row = i / cols;
-                float px = startX + col * (btnSize + gap);
-                float py = startY - row * (btnSize + gap);
-                int level = i + 1;
-                var btn = CreateButton(levelSelectPanel.transform, level.ToString(), 32,
-                                       new Vector2(px, py), new Vector2(btnSize, btnSize),
-                                       colorPrimary, () => OnLevelSelected?.Invoke(level));
-                levelButtons[i] = btn;
-                levelButtonTexts[i] = btn.GetComponentInChildren<Text>();
-                levelButtonImages[i] = btn.GetComponent<Image>();
-            }
-        }
+            // ©§©§ ¥≥πÿƒ£ Ω ©§©§
+            UIHelper.CreateButton(matchSubMenuPanel.transform, "¥≥πÿƒ£ Ω", 38,
+                                  new Vector2(0, 60), new Vector2(400, 90),
+                                  UIHelper.ColorPrimary,
+                                  () => { HideAllOwn(); OnMatchLevelClicked?.Invoke(); });
 
-        private void BuildGameHUD()
-        {
-            gameHudPanel = CreatePanel("GameHudPanel", false);
-            float padL = 20f; float padT = -70f; float lineH = 50f;
-            Color textBlue = new Color(0.2f, 0.6f, 1f);
+            // ©§©§ ∑ΩøÈƒ£ Ω ©§©§
+            UIHelper.CreateButton(matchSubMenuPanel.transform, "∑ΩøÈƒ£ Ω", 38,
+                                  new Vector2(0, -60), new Vector2(400, 90),
+                                  UIHelper.ColorOrange,
+                                  () => { HideAllOwn(); OnBlockModeClicked?.Invoke(); });
 
-            levelNameText = CreateTextAnchored(gameHudPanel.transform, "", 36, 0f, 1f,
-                            new Vector2(padL, padT), new Vector2(500, lineH), colorCleared, FontStyle.Bold);
-            scoreText = CreateTextAnchored(gameHudPanel.transform, "ÂæóÂàÜ: 0", 34, 0f, 1f,
-                        new Vector2(padL, padT - lineH), new Vector2(500, lineH), textBlue, FontStyle.Bold);
-            stepsText = CreateTextAnchored(gameHudPanel.transform, "Ê≠•Êï∞: 0 / 30", 34, 0f, 1f,
-                        new Vector2(padL, padT - lineH * 2), new Vector2(500, lineH), textBlue, FontStyle.Bold);
-            targetText = CreateTextAnchored(gameHudPanel.transform, "ÁõÆÊ†á: 5000", 34, 0f, 1f,
-                         new Vector2(padL, padT - lineH * 3), new Vector2(500, lineH), textBlue, FontStyle.Bold);
-            shuffleText = CreateTextAnchored(gameHudPanel.transform, "", 30, 0f, 1f,
-                          new Vector2(padL, padT - lineH * 4), new Vector2(500, lineH), colorCleared, FontStyle.Normal);
-            lastGainText = CreateTextAnchored(gameHudPanel.transform, "", 38, 1f, 1f,
-                           new Vector2(-20f, padT), new Vector2(250, lineH), colorSuccess, FontStyle.Bold);
-            lastGainText.alignment = TextAnchor.MiddleRight;
+            // ©§©§ ∑µªÿ ©§©§
+            UIHelper.CreateButton(matchSubMenuPanel.transform, "°˚ ∑µªÿ", 30,
+                                  new Vector2(-380, 380), new Vector2(160, 60),
+                                  UIHelper.ColorGray,
+                                  ShowMainMenu);
 
-            var exitBtn = CreateButton(gameHudPanel.transform, "ÈÄÄÂá∫", 26,
-                          Vector2.zero, new Vector2(110, 50),
-                          colorDanger, () => OnBackToLevelSelect?.Invoke());
-            var exitRt = exitBtn.GetComponent<RectTransform>();
-            exitRt.anchorMin = exitRt.anchorMax = exitRt.pivot = new Vector2(1f, 1f);
-            exitRt.anchoredPosition = new Vector2(-20f, padT - lineH);
-        }
-
-        private void BuildGameOver()
-        {
-            gameOverPanel = CreatePanel("GameOverPanel");
-            resultTitleText = CreateText(gameOverPanel.transform, "", 64, TextAnchor.MiddleCenter,
-                               new Vector2(0, 150), new Vector2(600, 90), Color.white, FontStyle.Bold);
-            resultScoreText = CreateText(gameOverPanel.transform, "", 40, TextAnchor.MiddleCenter,
-                               new Vector2(0, 50), new Vector2(600, 60), Color.white);
-            resultBestText = CreateText(gameOverPanel.transform, "", 32, TextAnchor.MiddleCenter,
-                              new Vector2(0, -10), new Vector2(600, 50), colorCleared);
-            CreateButton(gameOverPanel.transform, "ÈáçÊñ∞ÊåëÊàò", 34,
-                         new Vector2(-140, -120), new Vector2(240, 70),
-                         colorPrimary, () => OnRetryLevel?.Invoke());
-            CreateButton(gameOverPanel.transform, "ËøîÂõûÈÄâÂÖ≥", 34,
-                         new Vector2(140, -120), new Vector2(240, 70),
-                         colorSuccess, () => OnBackToLevelSelect?.Invoke());
-        }
-
-        // ---- Ê®°ÂºèB Èù¢Êùø ----
-
-        private void BuildBlockHUD()
-        {
-            blockHudPanel = CreatePanel("BlockHudPanel", false);
-            Color blue = new Color(0.2f, 0.6f, 1f);
-
-            // ÂàÜÊï∞ÔºàÂ±Ö‰∏≠ÂÅè‰∏äÔºåÂ§ßÂ≠óÂè∑ÔºåÈÜíÁõÆÔºâ
-            blockScoreText = CreateTextAnchored(blockHudPanel.transform, "ÂæóÂàÜ: 0", 54,
-                             0.5f, 1f, new Vector2(0, -70), new Vector2(500, 60),
-                             blue, FontStyle.Bold);
-            blockScoreText.alignment = TextAnchor.MiddleCenter;
-
-            // ÊúÄÈ´òÂàÜÔºàÂàÜÊï∞‰∏ãÊñπÔºåÁ®çÂ∞èÔºâ
-            blockHighText = CreateTextAnchored(blockHudPanel.transform, "ÊúÄÈ´òÂàÜ: 0", 42,
-                            0.5f, 1f, new Vector2(0, -130), new Vector2(500, 40),
-                            colorDanger, FontStyle.Normal);
-            blockHighText.alignment = TextAnchor.MiddleCenter;
-
-            // ÈÄÄÂá∫ÊåâÈíÆÔºàÂè≥‰∏äËßíÔºâ
-            var exitBtn = CreateButton(blockHudPanel.transform, "ÈÄÄÂá∫", 26,
-                          Vector2.zero, new Vector2(110, 50),
-                          colorDanger, () => OnBackToMenuFromB?.Invoke());
-            var rt = exitBtn.GetComponent<RectTransform>();
-            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(1f, 1f);
-            rt.anchoredPosition = new Vector2(-20f, -20f);
-
-            // ÂõûÊ∫ØÊåâÈíÆÔºàÂ∑¶‰∏äËßíÔºâ
-            undoButton = CreateButton(blockHudPanel.transform, "Êí§Âõû", 26,
-              Vector2.zero, new Vector2(110, 50),
-              colorOrange, () => OnBlockUndo?.Invoke());
-            var undoRt = undoButton.GetComponent<RectTransform>();
-            undoRt.anchorMin = undoRt.anchorMax = undoRt.pivot = new Vector2(0f, 1f);
-            undoRt.anchoredPosition = new Vector2(20f, -20f);
-            undoButton.interactable = false;
-        }
-
-        private void BuildBlockOver()
-        {
-            blockOverPanel = CreatePanel("BlockOverPanel");
-
-            CreateText(blockOverPanel.transform, "Ê∏∏ÊàèÁªìÊùü", 64, TextAnchor.MiddleCenter,
-                       new Vector2(0, 150), new Vector2(600, 90), colorDanger, FontStyle.Bold);
-            blockOverScoreText = CreateText(blockOverPanel.transform, "", 40, TextAnchor.MiddleCenter,
-                                  new Vector2(0, 50), new Vector2(600, 60), Color.white);
-            blockOverHighText = CreateText(blockOverPanel.transform, "", 32, TextAnchor.MiddleCenter,
-                                 new Vector2(0, -10), new Vector2(600, 50), colorCleared);
-
-            CreateButton(blockOverPanel.transform, "ÈáçÊñ∞ÂºÄÂßã", 34,
-                         new Vector2(-140, -120), new Vector2(240, 70),
-                         colorPrimary, () => OnBlockNewGame?.Invoke());
-            CreateButton(blockOverPanel.transform, "ËøîÂõû‰∏ªËèúÂçï", 30,
-                         new Vector2(140, -120), new Vector2(240, 70),
-                         colorSuccess, () => OnBackToMenuFromB?.Invoke());
-        }
-
-        // ==============================================================
-        //  UI ÂàõÂª∫ËæÖÂä©
-        // ==============================================================
-
-        private GameObject CreatePanel(string name, bool withBackground = true)
-        {
-            var go = new GameObject(name, typeof(RectTransform));
-            go.transform.SetParent(canvas.transform, false);
-            var rt = go.GetComponent<RectTransform>();
-            rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
-            rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
-            if (withBackground)
-            {
-                var img = go.AddComponent<Image>();
-                img.color = colorBg;
-                img.raycastTarget = true;
-            }
-            return go;
-        }
-
-        private Text CreateText(Transform parent, string content, int fontSize,
-                                TextAnchor anchor, Vector2 pos, Vector2 size,
-                                Color color, FontStyle style = FontStyle.Normal)
-        {
-            var go = new GameObject("Text", typeof(RectTransform));
-            go.transform.SetParent(parent, false);
-            var rt = go.GetComponent<RectTransform>();
-            rt.anchoredPosition = pos; rt.sizeDelta = size;
-            var txt = go.AddComponent<Text>();
-            txt.text = content;
-            txt.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            txt.fontSize = fontSize; txt.fontStyle = style;
-            txt.alignment = anchor; txt.color = color;
-            txt.horizontalOverflow = HorizontalWrapMode.Overflow;
-            txt.verticalOverflow = VerticalWrapMode.Overflow;
-            return txt;
-        }
-
-        private Text CreateTextAnchored(Transform parent, string content, int fontSize,
-                                        float anchorX, float anchorY,
-                                        Vector2 pos, Vector2 size,
-                                        Color color, FontStyle style = FontStyle.Normal)
-        {
-            var txt = CreateText(parent, content, fontSize, TextAnchor.MiddleLeft,
-                                 Vector2.zero, size, color, style);
-            var rt = txt.GetComponent<RectTransform>();
-            rt.anchorMin = new Vector2(anchorX, anchorY);
-            rt.anchorMax = new Vector2(anchorX, anchorY);
-            rt.pivot = new Vector2(anchorX, anchorY);
-            rt.anchoredPosition = pos;
-            return txt;
-        }
-
-        private Button CreateButton(Transform parent, string label, int fontSize,
-                                    Vector2 pos, Vector2 size, Color bgColor, Action onClick)
-        {
-            var go = new GameObject("Button", typeof(RectTransform));
-            go.transform.SetParent(parent, false);
-            var rt = go.GetComponent<RectTransform>();
-            rt.anchoredPosition = pos; rt.sizeDelta = size;
-            var img = go.AddComponent<Image>();
-            img.color = bgColor;
-            var btn = go.AddComponent<Button>();
-            var colors = btn.colors;
-            colors.highlightedColor = new Color(bgColor.r + 0.1f, bgColor.g + 0.1f, bgColor.b + 0.1f);
-            colors.pressedColor = new Color(bgColor.r - 0.1f, bgColor.g - 0.1f, bgColor.b - 0.1f);
-            colors.disabledColor = colorLocked;
-            btn.colors = colors;
-            if (onClick != null) btn.onClick.AddListener(() => onClick());
-            CreateText(go.transform, label, fontSize, TextAnchor.MiddleCenter,
-                       Vector2.zero, size, Color.white, FontStyle.Bold);
-            return btn;
-        }
-
-        public void Destroy()
-        {
-            if (canvas != null) UnityEngine.Object.Destroy(canvas.gameObject);
+            matchSubMenuPanel.SetActive(false);
         }
     }
 }

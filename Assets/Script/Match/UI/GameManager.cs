@@ -1,9 +1,12 @@
 using UnityEngine;
+using Common;
 
 namespace Match3
 {
     public class GameManager : MonoBehaviour
     {
+        [Header("消消乐模式")]
+
         [Header("素材（把 9 个水果 Sprite 全拖进来）")]
         public Sprite[] candySprites;
 
@@ -17,9 +20,9 @@ namespace Match3
         public float moveSpeed = 12f;
 
         [Header("===== HUD 调节 =====")]
-        [Range(0f, 0.5f)] public float hudAnchorX = 0f;
-        [Range(0f, 100f)] public float hudPadTop = 20f;
-        [Range(0f, 200f)] public float hudPadLeft = 20f;
+        [Range(0f, 0.5f)] public float hudAnchorX = 0.1f;
+        [Range(0f, 100f)] public float hudPadTop = 80f;
+        [Range(0f, 200f)] public float hudPadLeft = 100f;
         [Range(30f, 80f)] public float hudLineHeight = 50f;
         [Range(20, 60)]   public int hudFontSize = 34;
         public Color hudTextColor = new Color(0.2f, 0.6f, 1f);
@@ -33,11 +36,12 @@ namespace Match3
         public int debugTargetScore = 5000;
         [Range(5, 50)] public int debugMaxSteps = 30;
 
-        private UIManager ui;
+        private MatchUI ui;
         private GameBoard board;
         private BlockGame blockGame;
         private GameObject boardObject;
         private int currentLevel;
+        
 
         private void Start()
         {
@@ -48,22 +52,39 @@ namespace Match3
                 return;
             }
 
-            ui = new UIManager();
+            // ============ 1. 初始化 UIManager（只需一次）============
+            if (UIManager.Instance == null)
+            {
+                var uiGo = new GameObject("UIManager");
+                uiGo.AddComponent<UIManager>();
+                UIManager.Instance.Build();
+            }
+
+            // ============ 2. 用 AddComponent 创建 MatchUI ============
+            //  MonoBehaviour 不能用 new，必须用 AddComponent
+            var matchGo = new GameObject("MatchUI");
+            ui = matchGo.AddComponent<MatchUI>();
             ui.Build();
 
-            // 模式A 事件
-            ui.OnModeAClicked       += () => ui.ShowLevelSelect();
-            ui.OnBackToMenu         += () => { CleanupAll(); ui.ShowMainMenu(); };
-            ui.OnBackToLevelSelect  += () => { CleanupAll(); ui.ShowLevelSelect(); };
-            ui.OnRetryLevel         += () => StartLevel(currentLevel);
-            ui.OnLevelSelected      += OnLevelSelected;
-            ui.OnClearSave          += () => { SaveManager.ClearAll(); ui.RefreshLevelButtons(); };
+            // ============ 3. 订阅 UIManager 事件 ============
+            UIManager.Instance.OnMatchLevelClicked += () => ui.ShowLevelSelect();
+            UIManager.Instance.OnBlockModeClicked  += StartBlockMode;
+            UIManager.Instance.OnClearSaveClicked  += () =>
+            {
+                SaveManager.ClearAll();
+                ui.RefreshLevelButtons();
+            };
 
-            // 模式B 事件
-            ui.OnModeBClicked       += StartBlockMode;
-            ui.OnBackToMenuFromB    += () => { CleanupAll(); ui.ShowMainMenu(); };
-            ui.OnBlockNewGame       += () => { PlayerPrefs.DeleteKey("Block_Save"); StartBlockMode(); };
-            ui.OnBlockUndo += () => { if (blockGame != null) blockGame.Undo(); };
+            // ============ 4. 订阅 MatchUI 事件 ============
+            ui.OnBackToMenu        += () => { CleanupAll(); ui.HideAll(); UIManager.Instance.ShowMainMenu(); };
+            ui.OnBackToLevelSelect += () => { CleanupAll(); ui.ShowLevelSelect(); };
+            ui.OnRetryLevel        += () => StartLevel(currentLevel);
+            ui.OnLevelSelected     += OnLevelSelected;
+
+            // 模式B
+            ui.OnBackToMenuFromB   += () => { CleanupAll(); ui.HideAll(); UIManager.Instance.ShowMainMenu(); };
+            ui.OnBlockNewGame      += () => { PlayerPrefs.DeleteKey("Block_Save"); StartBlockMode(); };
+            ui.OnBlockUndo         += () => { if (blockGame != null) blockGame.Undo(); };
         }
 
         // ==============================================================
@@ -139,19 +160,24 @@ namespace Match3
             blockGame.background = background;
             blockGame.clearEffectPrefab = clearEffectPrefab;
 
-            blockGame.OnScoreChanged    += (s) => ui.UpdateBlockScore(s);
+            blockGame.OnScoreChanged     += (s) => ui.UpdateBlockScore(s);
             blockGame.OnHighScoreChanged += (s) => ui.UpdateBlockHighScore(s);
-            blockGame.OnGameOver        += OnBlockGameOver;
+            blockGame.OnGameOver         += OnBlockGameOver;
             blockGame.OnUndoAvailableChanged += (available) => ui.SetUndoInteractable(available);
-            
+
             ui.ShowBlockHUD();
         }
 
+        // 在 OnBlockGameOver 里保存记录
+   // GameManager.cs 第162行左右，把 BlockSaveData 改成 BlockRecordData
         private void OnBlockGameOver()
         {
+            if (blockGame != null)
+                BlockRecordData.SaveRecord(blockGame.CurrentScore);  // ← 改这里
+
             ui.ShowBlockGameOver();
         }
-
+        
         // ==============================================================
         //  清理
         // ==============================================================

@@ -45,6 +45,9 @@ namespace Match3
         private int[] snapshotShapeTypes   = new int[ShapesPerRound];
         private bool[] snapshotShapePlaced = new bool[ShapesPerRound];
         private bool  canUndo;
+
+        // BlockGame.cs 里加一个属性
+public int CurrentScore => score;   // score 是你内部的分数变量
         // ——————————————————————————————————————————————————
 
         // ==============================================================
